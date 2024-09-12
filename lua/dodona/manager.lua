@@ -47,11 +47,9 @@ end
 
 -- Enhanced download data function with media search
 function M.downloadData(url)
-	local result = api.get(url, true) -- Using full URL
+	local result = api.get(url, true)
 	if result.status == 200 then
-		local media_files = result.body -- Assuming body contains media file data
-
-		-- Use Telescope to allow the user to select media to download
+		local media_files = result.body
 		telescope.pickers
 			.new({}, {
 				prompt_title = "Select Media to Download",
@@ -68,7 +66,6 @@ function M.downloadData(url)
 				sorter = telescope.config.sorters.get_generic_fuzzy_sorter(),
 				attach_mappings = function(_, map)
 					map("i", "<CR>", function(_, entry)
-						-- On Enter, download the selected media file
 						local download_url = entry.value
 						local download_result = api.get(download_url, true)
 						if download_result.status == 200 then

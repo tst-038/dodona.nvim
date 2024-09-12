@@ -50,7 +50,7 @@ function M.get(url, full_url, params)
 			content_type = "application/json",
 			Authorization = config.token,
 		},
-		timeout = 5000, -- timeout in milliseconds
+		timeout = 5000,
 	})
 	return evaluate(output)
 end
@@ -62,7 +62,7 @@ function M.gethtml(url)
 		headers = {
 			Authorization = config.token,
 		},
-		timeout = 5000, -- timeout in milliseconds
+		timeout = 5000,
 	})
 	return output
 end
@@ -77,7 +77,7 @@ function M.post(url, body)
 			content_type = "application/json",
 			Authorization = config.token,
 		},
-		timeout = 5000, -- timeout in milliseconds
+		timeout = 5000,
 	})
 	return evaluate(output)
 end
@@ -92,7 +92,7 @@ function M.put(url, body)
 			content_type = "application/json",
 			Authorization = config.token,
 		},
-		timeout = 5000, -- timeout in milliseconds
+		timeout = 5000,
 	})
 	return evaluate(output)
 end
