@@ -4,7 +4,7 @@ if !has('nvim-0.5')
 endif
 
 command! DodonaSubmit lua require'dodona'.submit()
-command! DodonaInitActivities lua require'dodona'.initActivities()
+command! DodonaInit lua require'dodona'.initActivities()
 command! DodonaDownload lua require'dodona'.download()
 command! DodonaGo lua require'dodona'.go()
 command! DodonaSetToken lua require'dodona'.setToken()
