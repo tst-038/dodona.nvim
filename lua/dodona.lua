@@ -24,7 +24,8 @@ function M.initActivities()
 end
 
 function M.download()
-	manager.downloadData(utils.readbuffer(0, 1)[1])
+	local url_pattern = "(https?://[%w%.%-_/%%]+)"
+	telescope.downloadMediaSelector(utils.readbuffer(0, 1)[1]:match(url_pattern))
 end
 
 function M.go()

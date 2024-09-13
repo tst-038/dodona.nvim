@@ -174,13 +174,61 @@ function M.activitySelector(course_id, serie_id)
 		:find()
 end
 
--- Download Selector for media
-function M.downloadSelector()
-	-- TODO: remove hardcoded course_id
-	local course_id = 123
-	local media_url = "/courses/" .. course_id .. "/media"
+-- Helper to preview the media file using a buffer
+local media_previewer = previewers.new_buffer_previewer({
+	define_preview = function(self, entry)
+		manager.downloadToBuffer(entry.base_url, entry.value, function(buf)
+			vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
+		end)
 
-	manager.downloadData(media_url)
+		print(vim.inspect(entry.display))
+
+		vim.api.nvim_buf_call(self.state.bufnr, function()
+			vim.cmd("setfiletype " .. entry.display:match("^.+%.([^%.]+)$"))
+		end)
+	end,
+})
+
+-- Media Selector using Telescope
+function M.downloadMediaSelector(url)
+	local media_files = manager.getMediaFiles(url)
+
+	if #media_files == 0 then
+		vim.notify("No media files found", "warn")
+		return
+	end
+
+	pickers
+		.new({}, {
+			prompt_title = "Select Media to Download",
+			finder = finders.new_table({
+				results = media_files,
+				entry_maker = function(file)
+					return {
+						value = file.url,
+						display = file.name,
+						ordinal = file.name,
+						base_url = file.base_url,
+					}
+				end,
+			}),
+			sorter = sorters.get_generic_fuzzy_sorter(),
+			previewer = media_previewer,
+			attach_mappings = function(prompt_bufnr, map)
+				map("i", "<CR>", function()
+					local entry = action_state.get_selected_entry()
+					actions.close(prompt_bufnr)
+					manager.downloadToBuffer(entry.base_url, entry.value, function(buf)
+						local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+						vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+
+						vim.notify("File content copied to the current buffer: " .. entry.display, "info")
+					end)
+				end)
+				return true
+			end,
+		})
+		:find()
 end
 
 return M

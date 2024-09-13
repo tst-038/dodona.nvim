@@ -43,6 +43,8 @@ function M.get(url, full_url, params)
 		url = M.build_url(config.base_url .. url, params)
 	end
 
+	url = url:gsub("/.json$", ".json")
+
 	local output = curl.get({
 		url = url,
 		accept = "application/json",
