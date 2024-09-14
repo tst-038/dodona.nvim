@@ -118,8 +118,6 @@ function M.getMediaFiles(url)
 		end
 	end
 
-	print(vim.inspect(media_files))
-
 	return media_files
 end
 

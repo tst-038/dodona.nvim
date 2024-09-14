@@ -115,7 +115,6 @@ local function write_to_file(entry, file_path)
 		file:write(entry.comment .. " " .. entry.url .. "\n")
 
 		if entry.preview_content and entry.preview_content ~= "" then
-			print(vim.inspect(entry))
 			file:write(entry.preview_content)
 		end
 
