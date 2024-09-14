@@ -137,11 +137,9 @@ function M.downloadToBuffer(base_url, w, callback)
 					local buf = vim.api.nvim_create_buf(false, true)
 
 					if mime_type:find("^text/") or mime_type:find("^application/json") then
-						-- Text files and JSON can be previewed
 						local content = vim.fn.readfile(temp_file)
 						vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
 					else
-						-- Non-text files
 						vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
 							"Preview not supported for file type: " .. mime_type,
 						})

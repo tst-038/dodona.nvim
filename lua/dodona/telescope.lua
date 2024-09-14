@@ -112,10 +112,8 @@ end
 local function write_to_file(entry, file_path)
 	local file = io.open(file_path, "w")
 	if file then
-		-- Write comment and URL
 		file:write(entry.comment .. " " .. entry.url .. "\n")
 
-		-- Write the preview content if available
 		if entry.preview_content and entry.preview_content ~= "" then
 			print(vim.inspect(entry))
 			file:write(entry.preview_content)
@@ -132,9 +130,7 @@ end
 local function check_and_write_file(entry, file_name)
 	local file_path = vim.fn.getcwd() .. "/" .. file_name
 
-	-- Check if the file exists
 	if vim.fn.filereadable(file_path) == 1 then
-		-- Ask if the user wants to override the file
 		vim.ui.select({ "Yes", "No" }, {
 			prompt = "File already exists! Do you want to override it?",
 		}, function(choice)
@@ -145,7 +141,6 @@ local function check_and_write_file(entry, file_name)
 			end
 		end)
 	else
-		-- If file doesn't exist, write directly
 		write_to_file(entry, file_path)
 	end
 end
@@ -191,7 +186,7 @@ function M.activitySelector(course_id, serie_id)
 				url = activity.url:gsub("%.json$", "/"),
 				extension = activity.programming_language.extension,
 				programming_language = activity.programming_language.name,
-				comment = comments[activity.programming_language.name], -- Comment field for the language
+				comment = comments[activity.programming_language.name],
 				preview_content = activity.boilerplate,
 			}
 		end,
@@ -201,7 +196,6 @@ function M.activitySelector(course_id, serie_id)
 				local selection = action_state.get_selected_entry()
 				local file_name = selection.display .. "." .. selection.extension
 
-				-- Check if the file exists and handle writing it
 				check_and_write_file(selection, file_name)
 			end)
 			return true
@@ -212,12 +206,9 @@ end
 -- Previewer for media content
 local media_previewer = previewers.new_buffer_previewer({
 	define_preview = function(self, entry)
-		-- Download the content to a temporary buffer
 		manager.downloadToBuffer(entry.base_url, entry.value, function(buf)
-			-- Get the content from the buffer and store it in entry.preview_content
 			entry.preview_content = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
 
-			-- Use the helper function to set the content and filetype
 			set_buffer_content(self.state.bufnr, entry.preview_content, entry.display:match("^.+%.([^%.]+)$"))
 		end)
 	end,
@@ -252,7 +243,6 @@ function M.downloadMediaSelector()
 						display = file.name,
 						ordinal = file.name,
 						base_url = file.base_url,
-						-- Initialize content as empty, will be updated in the preview
 						preview_content = "",
 					}
 				end,
@@ -266,10 +256,8 @@ function M.downloadMediaSelector()
 							return
 						end
 
-						-- Use the content stored in the entry itself
 						local content_to_write = entry.preview_content or ""
 
-						-- Define file path
 						local filepath = vim.fn.getcwd() .. "/" .. entry.display
 
 						local function write_to_file()
@@ -283,7 +271,6 @@ function M.downloadMediaSelector()
 							end
 						end
 
-						-- Check if file exists and prompt for confirmation
 						if vim.fn.filereadable(filepath) == 1 then
 							vim.ui.select({ "Yes", "No" }, {
 								prompt = "File already exists! Do you want to override it?",
@@ -295,11 +282,9 @@ function M.downloadMediaSelector()
 								end
 							end)
 						else
-							-- If file doesn't exist, write to the file directly
 							write_to_file()
 						end
 
-						-- Close the picker window
 						actions.close(prompt_bufnr)
 					end)
 					return true
