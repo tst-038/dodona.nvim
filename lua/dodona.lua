@@ -20,7 +20,7 @@ function M.submit()
 end
 
 function M.initActivities()
-	telescope.yearSelector()
+	require("dodona.pickers.year_picker").yearSelector()
 end
 
 function M.download()
@@ -32,9 +32,9 @@ function M.go()
 
 	vim.cmd(
 		"silent !"
-		.. (config.go_cmd ~= nil and config.go_cmd or "gio open")
-		.. " "
-		.. string.sub(first_line, first_line:find("https"), -1)
+			.. (config.go_cmd ~= nil and config.go_cmd or "gio open")
+			.. " "
+			.. string.sub(first_line, first_line:find("https"), -1)
 	)
 end
 
