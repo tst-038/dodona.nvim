@@ -24,8 +24,7 @@ function M.initActivities()
 end
 
 function M.download()
-	local url_pattern = "(https?://[%w%.%-_/%%]+)"
-	telescope.downloadMediaSelector(utils.readbuffer(0, 1)[1]:match(url_pattern))
+	telescope.downloadMediaSelector()
 end
 
 function M.go()
@@ -33,9 +32,9 @@ function M.go()
 
 	vim.cmd(
 		"silent !"
-			.. (config.go_cmd ~= nil and config.go_cmd or "gio open")
-			.. " "
-			.. string.sub(first_line, first_line:find("https"), -1)
+		.. (config.go_cmd ~= nil and config.go_cmd or "gio open")
+		.. " "
+		.. string.sub(first_line, first_line:find("https"), -1)
 	)
 end
 

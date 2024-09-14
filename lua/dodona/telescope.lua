@@ -1,4 +1,5 @@
 local manager = require("dodona.manager")
+local comments = require("dodona.comments")
 local api = require("dodona.api")
 local actions = require("telescope.actions")
 local action_state = require("telescope.actions.state")
@@ -31,31 +32,6 @@ local function set_buffer_content(bufnr, content, filetype)
 		vim.cmd("setfiletype " .. filetype)
 	end)
 end
-
--- Previewer for activities or media content
-local file_previewer = previewers.new_buffer_previewer({
-	preview_title = "Latest submission",
-	define_preview = function(self, entry)
-		local submissions = api.get(
-			"/courses/" .. entry.course .. "/series/" .. entry.serie .. "/activities/" .. entry.value .. "/submissions",
-			false
-		)
-		local content_to_show = ""
-
-		if submissions and #submissions.body > 0 then
-			local latest_submission_url = submissions.body[1].url
-			local latest_submission = api.get(latest_submission_url, true)
-			content_to_show = latest_submission and latest_submission.body.code or ""
-		end
-
-		local response =
-				api.get("/courses/" .. entry.course .. "/series/" .. entry.serie .. "/activities/" .. entry.value, false)
-		local filetype = response.body.programming_language.extension
-		content_to_show = content_to_show == "" and response.body.boilerplate or content_to_show
-
-		set_buffer_content(self.state.bufnr, content_to_show, filetype)
-	end,
-})
 
 -- Selector for course years
 function M.yearSelector()
@@ -133,6 +109,68 @@ function M.serieSelector(course_id)
 	)
 end
 
+local function write_to_file(entry, file_path)
+	local file = io.open(file_path, "w")
+	if file then
+		-- Write comment and URL
+		file:write(entry.comment .. " " .. entry.url .. "\n")
+
+		-- Write the preview content if available
+		if entry.preview_content and entry.preview_content ~= "" then
+			print(vim.inspect(entry))
+			file:write(entry.preview_content)
+		end
+
+		file:close()
+		vim.notify("File written: " .. file_path, "info")
+	else
+		vim.notify("Error writing to file: " .. file_path, "error")
+	end
+end
+
+-- Function to check if a file exists and prompt the user to override it
+local function check_and_write_file(entry, file_name)
+	local file_path = vim.fn.getcwd() .. "/" .. file_name
+
+	-- Check if the file exists
+	if vim.fn.filereadable(file_path) == 1 then
+		-- Ask if the user wants to override the file
+		vim.ui.select({ "Yes", "No" }, {
+			prompt = "File already exists! Do you want to override it?",
+		}, function(choice)
+			if choice == "Yes" then
+				write_to_file(entry, file_path)
+			else
+				vim.notify("File not overwritten: " .. file_name, "info")
+			end
+		end)
+	else
+		-- If file doesn't exist, write directly
+		write_to_file(entry, file_path)
+	end
+end
+
+-- Previewer for activities or media content
+local file_previewer = previewers.new_buffer_previewer({
+	preview_title = "Latest submission",
+	define_preview = function(self, entry)
+		local submissions = api.get(
+			"/courses/" .. entry.course .. "/series/" .. entry.serie .. "/activities/" .. entry.value .. "/submissions",
+			false
+		)
+
+		if submissions and #submissions.body > 0 then
+			local latest_submission_url = submissions.body[1].url
+			local latest_submission = api.get(latest_submission_url, true)
+
+			if latest_submission and latest_submission.body.code and latest_submission.body.code ~= "" then
+				entry.preview_content = latest_submission.body.code
+			end
+		end
+		set_buffer_content(self.state.bufnr, entry.preview_content, entry.extension)
+	end,
+})
+
 -- Selector for activities
 function M.activitySelector(course_id, serie_id)
 	local activities = manager.getActivities(serie_id)
@@ -140,6 +178,7 @@ function M.activitySelector(course_id, serie_id)
 	create_picker(
 		{
 			previewer = file_previewer,
+			preview_title = "Latest submission",
 		},
 		activities,
 		function(activity)
@@ -149,67 +188,131 @@ function M.activitySelector(course_id, serie_id)
 				value = activity.id,
 				display = activity.name,
 				ordinal = activity.name,
+				url = activity.url:gsub("%.json$", "/"),
+				extension = activity.programming_language.extension,
+				programming_language = activity.programming_language.name,
+				comment = comments[activity.programming_language.name], -- Comment field for the language
+				preview_content = activity.boilerplate,
 			}
 		end,
 		"Select Activity",
 		function(_, map)
 			map("i", "<CR>", function(_, entry)
-				vim.notify("Selected activity: " .. entry.display)
+				local selection = action_state.get_selected_entry()
+				local file_name = selection.display .. "." .. selection.extension
+
+				-- Check if the file exists and handle writing it
+				check_and_write_file(selection, file_name)
 			end)
 			return true
 		end
 	)
 end
 
--- Helper to preview the media file using a buffer
+-- Previewer for media content
 local media_previewer = previewers.new_buffer_previewer({
 	define_preview = function(self, entry)
+		-- Download the content to a temporary buffer
 		manager.downloadToBuffer(entry.base_url, entry.value, function(buf)
-			vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
-		end)
+			-- Get the content from the buffer and store it in entry.preview_content
+			entry.preview_content = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
 
-		vim.api.nvim_buf_call(self.state.bufnr, function()
-			vim.cmd("setfiletype " .. entry.display:match("^.+%.([^%.]+)$"))
+			-- Use the helper function to set the content and filetype
+			set_buffer_content(self.state.bufnr, entry.preview_content, entry.display:match("^.+%.([^%.]+)$"))
 		end)
 	end,
 })
 
 -- Media Selector using Telescope
-function M.downloadMediaSelector(url)
-	local media_files = manager.getMediaFiles(url)
+function M.downloadMediaSelector()
+	local bufnr = vim.api.nvim_get_current_buf()
+	local first_line = vim.api.nvim_buf_get_lines(bufnr, 0, 1, false)[1] or ""
+	local url = first_line:match("(https?://[%w-_%.%?%.:/%+=&]+)") or ""
+	url = url:gsub("/$", "")
 
-	if #media_files == 0 then
-		vim.notify("No media files found", "warn")
-		return
+	if url ~= "" then
+		local api_response = api.get(url, true)
+
+		if api_response and api_response.body then
+			local media_files = manager.getMediaFiles(url)
+
+			if #media_files == 0 then
+				vim.notify("No media files found", "warn")
+				return
+			end
+
+			create_picker(
+				{
+					previewer = media_previewer,
+				},
+				media_files,
+				function(file)
+					return {
+						value = file.url,
+						display = file.name,
+						ordinal = file.name,
+						base_url = file.base_url,
+						-- Initialize content as empty, will be updated in the preview
+						preview_content = "",
+					}
+				end,
+				"Select Media to Download",
+				function(prompt_bufnr, map)
+					map("i", "<CR>", function()
+						local entry = action_state.get_selected_entry()
+
+						if not entry then
+							vim.notify("No valid selection", "error")
+							return
+						end
+
+						-- Use the content stored in the entry itself
+						local content_to_write = entry.preview_content or ""
+
+						-- Define file path
+						local filepath = vim.fn.getcwd() .. "/" .. entry.display
+
+						local function write_to_file()
+							local f = io.open(filepath, "w")
+							if f then
+								f:write(content_to_write)
+								f:close()
+								vim.notify("File written: " .. filepath, "info")
+							else
+								vim.notify("Failed to open file: " .. filepath, "error")
+							end
+						end
+
+						-- Check if file exists and prompt for confirmation
+						if vim.fn.filereadable(filepath) == 1 then
+							vim.ui.select({ "Yes", "No" }, {
+								prompt = "File already exists! Do you want to override it?",
+							}, function(choice)
+								if choice == "Yes" then
+									write_to_file()
+								else
+									vim.notify("File not overwritten: " .. filepath, "info")
+								end
+							end)
+						else
+							-- If file doesn't exist, write to the file directly
+							write_to_file()
+						end
+
+						-- Close the picker window
+						actions.close(prompt_bufnr)
+					end)
+					return true
+				end
+			)
+			return
+		else
+			vim.notify("First line does not return a valid API request", "warn")
+		end
 	end
 
-	create_picker(
-		{
-			previewer = media_previewer,
-		},
-		media_files,
-		function(file)
-			return {
-				value = file.url,
-				display = file.name,
-				ordinal = file.name,
-				base_url = file.base_url,
-			}
-		end,
-		"Select Media to Download",
-		function(prompt_bufnr, map)
-			map("i", "<CR>", function()
-				local entry = action_state.get_selected_entry()
-				actions.close(prompt_bufnr)
-				manager.downloadToBuffer(entry.base_url, entry.value, function(buf)
-					local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-					vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
-					vim.notify("File content copied to the current buffer: " .. entry.display, "info")
-				end)
-			end)
-			return true
-		end
-	)
+	vim.notify("Falling back to course selection", "info")
+	M.yearSelector()
 end
 
 return M
