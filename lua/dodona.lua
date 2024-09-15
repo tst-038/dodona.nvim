@@ -1,5 +1,4 @@
 local api = require("dodona.api")
-local telescope = require("dodona.telescope")
 local manager = require("dodona.manager")
 local utils = require("dodona.utils")
 
@@ -8,10 +7,6 @@ local fn = vim.fn
 local config = {}
 
 local M = {}
-
-function M.test()
-	telescope.telescope()
-end
 
 function M.submit()
 	local file = fn.expand("%")
@@ -24,7 +19,7 @@ function M.initActivities()
 end
 
 function M.download()
-	telescope.downloadMediaSelector()
+	require("dodona.pickers.media_picker").mediaSelector()
 end
 
 function M.go()
