@@ -5,6 +5,26 @@ local M = {}
 
 local config = {}
 
+-- Fetch CSRF token
+function M.fetch_csrf_token()
+	local url = config.base_url .. "/csrf-token-endpoint" -- Replace with actual endpoint
+	local response = curl.get({
+		url = url,
+		headers = {
+			Authorization = config.token,
+		},
+		timeout = 5000,
+	})
+
+	if response.status ~= 200 then
+		vim.notify("Failed to fetch CSRF token.")
+		return nil
+	end
+
+	local body = fn.json_decode(response.body)
+	return body.token -- Adjust according to how the token is provided
+end
+
 -- Utility function to handle API response evaluation
 local function evaluate(result)
 	if result.status ~= 200 then

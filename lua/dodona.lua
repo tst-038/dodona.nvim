@@ -22,6 +22,14 @@ function M.download()
 	require("dodona.pickers.media_picker").mediaSelector()
 end
 
+function M.searchCourses()
+	require("dodona.pickers.search_picker").searchCourses()
+end
+
+function M.searchActivities()
+	require("dodona.pickers.search_picker").searchActivities()
+end
+
 function M.go()
 	local first_line = vim.fn.escape(utils.readbuffer(0, 1)[1], "#")
 
