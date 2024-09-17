@@ -22,12 +22,8 @@ function M.download()
 	require("dodona.pickers.media_picker").mediaSelector()
 end
 
-function M.searchCourses()
-	require("dodona.pickers.search_picker").searchCourses()
-end
-
-function M.searchActivities()
-	require("dodona.pickers.search_picker").searchActivities()
+function M.search()
+	require("dodona.pickers.search_picker").search()
 end
 
 function M.go()

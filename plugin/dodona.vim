@@ -5,8 +5,7 @@ endif
 
 command! DodonaSubmit lua require'dodona'.submit()
 command! DodonaInit lua require'dodona'.initActivities()
-command! DodonaSearchCourse lua require'dodona'.searchCourses()
-command! DodonaSearchActivity lua require'dodona'.searchActivities()
+command! DodonaSearch lua require'dodona'.search()
 command! DodonaDownload lua require'dodona'.download()
 command! DodonaGo lua require'dodona'.go()
 command! DodonaSetToken lua require'dodona'.setToken()

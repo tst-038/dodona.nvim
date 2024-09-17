@@ -1,4 +1,5 @@
 local api = require("dodona.api")
+local stringUtil = require("dodona.utils.string")
 
 local M = {}
 
@@ -48,7 +49,7 @@ local function fetchCourses(page, filter)
 	}
 	local response = api.get("/courses/", false, params)
 	if response and response.body then
-		return response.body or {} -- Ensure it's returning courses properly
+		return response.body or {}
 	end
 	return {}
 end
@@ -66,9 +67,9 @@ end
 -- Function to get the Nerd Font symbol for subscription status
 local function getSubscriptionSymbol(course_id, subscribed_courses)
 	if isCourseSubscribed(course_id, subscribed_courses) then
-		return " " -- Nerd Font checkmark icon
+		return " "
 	else
-		return " " -- Nerd Font cross icon
+		return " "
 	end
 end
 
@@ -79,23 +80,14 @@ function M.getCoursesFinder()
 		local cached_subscribed_courses = M.getSubscribedCourses()
 
 		for _, course in ipairs(courses) do
-			if course.name and course.name:lower():find(prompt:lower()) then
-				local function pad_string(str, width)
-					local str_width = vim.fn.strdisplaywidth(str)
-					local padding = width - str_width
-					if padding > 0 then
-						return str .. string.rep(" ", padding)
-					else
-						return str -- If the string is too long, leave it as is
-					end
-				end
+			if course.name and course.name:find(prompt) then
 				local name_width = 80
 				local year_width = 30
 				local teacher_width = 10
 
-				local display_str = pad_string(course.name, name_width)
-						.. pad_string(course.year or "", year_width)
-						.. pad_string(course.teacher or "", teacher_width)
+				local display_str = stringUtil.pad_string(course.name, name_width)
+					.. stringUtil.pad_string(course.year or "", year_width)
+					.. stringUtil.pad_string(course.teacher or "", teacher_width)
 
 				table.insert(filtered_courses, {
 					display = string.format(
