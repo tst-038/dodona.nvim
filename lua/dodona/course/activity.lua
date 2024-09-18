@@ -16,16 +16,70 @@ function M.getActivities(serie_id)
 	return result.body or {}
 end
 
--- Evaluate submission for an activity
-function M.evalSubmission(submission_id)
-	local result = api.post("/submissions/" .. submission_id .. "/evaluate", {})
+local function check_evaluated(url)
+	local timer = vim.loop.new_timer()
+	local i = 0
+	-- Waits 2000ms, then repeats every 1000ms until timer:close().
+	timer:start(
+		2000,
+		2000,
+		vim.schedule_wrap(function()
+			local response = api.get(url, true)
 
-	if not result or result.status ~= 200 then
-		vim.notify("Failed to evaluate submission ID: " .. submission_id, "error")
-		return {}
+			if i > 10 or response.status ~= 200 then
+				timer:close() -- Always close handles to avoid leaks.
+			end
+
+			if response.body.status ~= "running" and response.body.status ~= "queued" then
+				local color
+				if response.body.accepted then
+					color = "info"
+				else
+					color = "error"
+				end
+				timer:close()
+				vim.notify(
+					response.body.status
+						.. ": "
+						.. tostring(response.body.summary)
+						.. "\n"
+						.. string.sub(response.body.url, 1, -6),
+					color
+				)
+			end
+
+			i = i + 1
+		end)
+	)
+end
+
+-- Evaluate submission for an activity
+function M.evalSubmission(filename, ext)
+	local file = io.open(filename, "r")
+
+	if file == nil then
+		return
 	end
 
-	return result.body or {}
+	local url = require("dodona.utils").split(file:read():reverse(), "/")
+	local filtered = require("dodona.filter").filter(ext, file:read("*a"))
+	local body = {
+		submission = {
+			code = filtered,
+			course_id = tonumber(url[6]:reverse()),
+			series_id = tonumber(url[4]:reverse()),
+			exercise_id = tonumber(url[2]:reverse()),
+		},
+	}
+	file:close()
+
+	local response = api.post("/submissions.json", body)
+	if response.body.status == "ok" and response.status == 200 then
+		vim.notify("Solution has been submitted \nEvaluating...", "warn")
+		check_evaluated(response.body.url)
+	else
+		vim.notify("Submit failed!!!", "error")
+	end
 end
 
 -- Helper function to fetch activities based on page number and filter
