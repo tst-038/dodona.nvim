@@ -18,9 +18,9 @@ M.file_previewer = previewers.new_buffer_previewer({
 
 			if latest_submission and latest_submission.body.code and latest_submission.body.code ~= "" then
 				entry.preview_content = latest_submission.body.code
+				file_ops.set_buffer_content(self.state.bufnr, entry.preview_content, entry.extension)
 			end
 		end
-		file_ops.set_buffer_content(self.state.bufnr, entry.preview_content, entry.extension)
 	end,
 })
 
