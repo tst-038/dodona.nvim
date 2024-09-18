@@ -1,3 +1,5 @@
+local notify = require("notify")
+
 local M = {}
 
 -- Helper function to write content to a file
@@ -11,9 +13,9 @@ function M.write_to_file(entry, file_path)
 		end
 
 		file:close()
-		vim.notify("File written: " .. file_path, "info")
+		notify("File written: " .. file_path, "info")
 	else
-		vim.notify("Error writing to file: " .. file_path, "error")
+		notify("Error writing to file: " .. file_path, "error")
 	end
 end
 
@@ -28,7 +30,7 @@ function M.check_and_write_file(entry, file_name)
 			if choice == "Yes" then
 				M.write_to_file(entry, file_path)
 			else
-				vim.notify("File not overwritten: " .. file_name, "info")
+				notify("File not overwritten: " .. file_name, "info")
 			end
 		end)
 	else

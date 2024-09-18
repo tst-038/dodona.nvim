@@ -3,7 +3,7 @@ local picker_helper = require("dodona.utils.picker_helper")
 local media_previewer = require("dodona.previewers.media_previewer")
 local action_state = require("telescope.actions.state")
 local actions = require("telescope.actions")
-local utils = require("dodona.utils")
+local notify = require("notify")
 local file_operations = require("dodona.utils.file_operations")
 
 local M = {}
@@ -20,7 +20,7 @@ local function handle_media_selection(prompt_bufnr, entry)
 			if choice == "Yes" then
 				file_operations.write_to_file(filepath, content_to_write)
 			else
-				vim.notify("File not overwritten: " .. filepath, "info")
+				notify("File not overwritten: " .. filepath, "info")
 			end
 		end)
 	else
@@ -41,7 +41,7 @@ function M.mediaSelector()
 		local media_files = manager.getMediaFiles(url)
 
 		if #media_files == 0 then
-			vim.notify("No media files found", "warn")
+			notify("No media files found", "warn")
 			return
 		end
 
@@ -65,7 +65,7 @@ function M.mediaSelector()
 					local entry = action_state.get_selected_entry()
 
 					if not entry then
-						vim.notify("No valid selection", "error")
+						notify("No valid selection", "error")
 						return
 					end
 
@@ -75,7 +75,7 @@ function M.mediaSelector()
 			end
 		)
 	else
-		vim.notify("Falling back to course selection", "info")
+		notify("Falling back to course selection", "info")
 		require("dodona.pickers.year_picker").yearSelector()
 	end
 end

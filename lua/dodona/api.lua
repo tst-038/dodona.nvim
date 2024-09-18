@@ -1,4 +1,5 @@
 local curl = require("plenary.curl")
+local notify = require("notify")
 local fn = vim.fn
 
 local M = {}
@@ -9,9 +10,9 @@ local config = {}
 local function evaluate(result)
 	if result.status ~= 200 then
 		vim.schedule(function()
-			vim.notify("Cannot execute request.")
+			notify("Cannot execute request.")
 			if result.status == 401 then
-				vim.notify("Unauthorized request: make sure you have working token.")
+				notify("Unauthorized request: make sure you have working token.")
 			end
 		end)
 		return { status = result.status, body = {} }

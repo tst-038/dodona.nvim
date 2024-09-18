@@ -31,9 +31,9 @@ function M.go()
 
 	vim.cmd(
 		"silent !"
-			.. (config.go_cmd ~= nil and config.go_cmd or "gio open")
-			.. " "
-			.. string.sub(first_line, first_line:find("https"), -1)
+		.. (config.go_cmd ~= nil and config.go_cmd or "gio open")
+		.. " "
+		.. string.sub(first_line, first_line:find("https"), -1)
 	)
 end
 

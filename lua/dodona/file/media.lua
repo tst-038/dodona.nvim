@@ -1,6 +1,7 @@
 local api = require("dodona.api")
 local utils = require("dodona.utils")
 local Job = require("plenary.job")
+local notify = require("notify")
 
 local M = {}
 
@@ -9,7 +10,7 @@ function M.getMediaFiles(url)
 	local response = api.get(url .. ".json", true)
 
 	if response.status ~= 200 then
-		vim.notify("Failed to fetch media metadata from: " .. url, "error")
+		notify("Failed to fetch media metadata from: " .. url, "error")
 		return {}
 	end
 
@@ -20,10 +21,10 @@ function M.getMediaFiles(url)
 	for w in string.gmatch(description, '"media/.-"') do
 		local clean_url = w:gsub('^"', ""):gsub('"$', "")
 		if
-			not utils.has_value(handled, clean_url)
-			and not clean_url:find(".png")
-			and not clean_url:find(".jpg")
-			and not clean_url:find(".zip")
+				not utils.has_value(handled, clean_url)
+				and not clean_url:find(".png")
+				and not clean_url:find(".jpg")
+				and not clean_url:find(".zip")
 		then
 			table.insert(media_files, {
 				url = clean_url,
@@ -65,7 +66,7 @@ function M.downloadToBuffer(base_url, w, callback)
 				end)
 			else
 				vim.schedule(function()
-					vim.notify("Error when downloading: " .. string.sub(w, w:find("/[^/]*$") + 1, -1), "error")
+					notify("Error when downloading: " .. string.sub(w, w:find("/[^/]*$") + 1, -1), "error")
 				end)
 			end
 		end,

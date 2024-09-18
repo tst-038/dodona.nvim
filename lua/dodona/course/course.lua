@@ -1,5 +1,6 @@
 local api = require("dodona.api")
 local stringUtil = require("dodona.utils.string")
+local notify = require("notify")
 
 local M = {}
 
@@ -8,12 +9,12 @@ function M.getSubscribedCourses()
 	local result = api.get("", false)
 
 	if not result or not result.body then
-		vim.notify("Failed to fetch data from the server", "error")
+		notify("Failed to fetch data from the server", "error")
 		return {}
 	end
 
 	if not result.body.user then
-		vim.notify("User data is missing in the response", "error")
+		notify("User data is missing in the response", "error")
 		return {}
 	end
 
@@ -25,7 +26,7 @@ function M.getCourse(name, id, year)
 	local courses = M.getSubscribedCourses()
 
 	if #courses == 0 then
-		vim.notify("No subscribed courses found", "error")
+		notify("No subscribed courses found", "error")
 		return nil
 	end
 
@@ -35,7 +36,7 @@ function M.getCourse(name, id, year)
 		end
 	end
 
-	vim.notify("Course not found", "warn")
+	notify("Course not found", "warn")
 	return nil
 end
 
@@ -86,8 +87,8 @@ function M.getCoursesFinder()
 				local teacher_width = 10
 
 				local display_str = stringUtil.pad_string(course.name, name_width)
-					.. stringUtil.pad_string(course.year or "", year_width)
-					.. stringUtil.pad_string(course.teacher or "", teacher_width)
+						.. stringUtil.pad_string(course.year or "", year_width)
+						.. stringUtil.pad_string(course.teacher or "", teacher_width)
 
 				table.insert(filtered_courses, {
 					display = string.format(
@@ -116,10 +117,10 @@ function M.toggleSubscription(entry, subscribed_courses)
 	if isCourseSubscribed(course_id, subscribed_courses or M.getSubscribedCourses()) then
 		-- TODO: implement proper unsubscribe logic
 		api.get("/courses/" .. course_id .. "/unsubscribe", false, {})
-		vim.notify("Unsubscribed from course: " .. entry.display, "info")
+		notify("Unsubscribed from course: " .. entry.display, "info")
 	else
 		api.get("/courses/" .. course_id .. "/subscribe", false, {})
-		vim.notify("Subscribed to course: " .. entry.display, "info")
+		notify("Subscribed to course: " .. entry.display, "info")
 	end
 end
 

@@ -1,6 +1,7 @@
 local api = require("dodona.api")
 local stringUtil = require("dodona.utils.string")
 local icon = require("dodona.utils.icon")
+local notify = require("notify")
 
 local M = {}
 
@@ -9,7 +10,7 @@ function M.getActivities(serie_id)
 	local result = api.get("/series/" .. serie_id .. "/activities")
 
 	if not result or result.status ~= 200 then
-		vim.notify("Failed to fetch activities for series ID: " .. serie_id, "error")
+		notify("Failed to fetch activities for series ID: " .. serie_id, "error")
 		return {}
 	end
 
@@ -38,12 +39,12 @@ local function check_evaluated(url)
 					color = "error"
 				end
 				timer:close()
-				vim.notify(
+				notify(
 					response.body.status
-						.. ": "
-						.. tostring(response.body.summary)
-						.. "\n"
-						.. string.sub(response.body.url, 1, -6),
+					.. ": "
+					.. tostring(response.body.summary)
+					.. "\n"
+					.. string.sub(response.body.url, 1, -6),
 					color
 				)
 			end
@@ -75,10 +76,10 @@ function M.evalSubmission(filename, ext)
 
 	local response = api.post("/submissions.json", body)
 	if response.body.status == "ok" and response.status == 200 then
-		vim.notify("Solution has been submitted \nEvaluating...", "warn")
+		notify("Solution has been submitted \nEvaluating...", "warn")
 		check_evaluated(response.body.url)
 	else
-		vim.notify("Submit failed!!!", "error")
+		notify("Submit failed!!!", "error")
 	end
 end
 
@@ -106,8 +107,8 @@ function M.getActivitiesFinder()
 				table.insert(filtered_activities, {
 					value = activity.id,
 					display = icon.get_icon(activity.programming_language.name)
-						.. stringUtil.pad_string(icon.get_status_icon(activity), icon.STATUS_PADDING_LENGTH)
-						.. activity.name,
+							.. stringUtil.pad_string(icon.get_status_icon(activity), icon.STATUS_PADDING_LENGTH)
+							.. activity.name,
 					ordinal = activity.name,
 					has_correct_solution = activity.has_correct_solution,
 					has_solution = activity.has_solution,
@@ -120,7 +121,7 @@ end
 
 -- Inspect activity: Open its details (optional previewer, or other logic)
 function M.inspectActivity(entry)
-	vim.notify("Inspecting activity: " .. entry.display, "info")
+	notify("Inspecting activity: " .. entry.display, "info")
 end
 
 return M
