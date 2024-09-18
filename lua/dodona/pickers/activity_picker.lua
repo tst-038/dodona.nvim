@@ -1,4 +1,5 @@
 local manager = require("dodona.manager")
+local icon = require("dodona.utils.icon")
 local picker_helper = require("dodona.utils.picker_helper")
 local action_state = require("telescope.actions.state")
 local file_ops = require("dodona.utils.file_operations")
@@ -19,7 +20,7 @@ function M.activitySelector(course_id, serie_id)
 				course = course_id,
 				serie = serie_id,
 				value = activity.id,
-				display = activity.name,
+				display = icon.get_icon(activity.programming_language.name) .. activity.name,
 				ordinal = activity.name,
 				url = activity.url:gsub("%.json$", "/"),
 				extension = activity.programming_language.extension,
