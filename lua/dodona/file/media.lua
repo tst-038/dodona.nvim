@@ -20,12 +20,7 @@ function M.getMediaFiles(url)
 
 	for w in string.gmatch(description, '"media/.-"') do
 		local clean_url = w:gsub('^"', ""):gsub('"$', "")
-		if
-				not utils.has_value(handled, clean_url)
-				and not clean_url:find(".png")
-				and not clean_url:find(".jpg")
-				and not clean_url:find(".zip")
-		then
+		if not utils.has_value(handled, clean_url) then
 			table.insert(media_files, {
 				url = clean_url,
 				name = string.sub(clean_url, clean_url:find("/[^/]*$") + 1),
@@ -61,7 +56,7 @@ function M.downloadToBuffer(base_url, w, callback)
 					end
 
 					if callback then
-						callback(buf)
+						callback(buf, temp_file)
 					end
 				end)
 			else

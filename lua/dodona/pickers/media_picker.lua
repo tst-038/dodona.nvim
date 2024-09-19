@@ -9,25 +9,70 @@ local file_operations = require("dodona.utils.file_operations")
 local M = {}
 
 -- Function to handle media selection and writing to file
-local function handle_media_selection(prompt_bufnr, entry)
-	local content_to_write = entry.preview_content or ""
-	local filepath = vim.fn.getcwd() .. "/" .. entry.display
+local function handle_media_selection(entry)
+	local filepath = vim.fn.getcwd() .. "/" .. entry.ordinal
 
-	if vim.fn.filereadable(filepath) == 1 then
-		vim.ui.select({ "Yes", "No" }, {
-			prompt = "File already exists! Do you want to override it?",
-		}, function(choice)
-			if choice == "Yes" then
-				file_operations.write_to_file(filepath, content_to_write)
-			else
-				notify("File not overwritten: " .. filepath, "info")
+	local write = function()
+		if vim.fn.filereadable(filepath) == 1 then
+			vim.ui.select({ "Yes", "No" }, {
+				prompt = "File already exists! Do you want to override it?",
+			}, function(choice)
+				if choice == "Yes" then
+					file_operations.write_to_file(entry, filepath)
+				else
+					notify("File not overwritten: " .. filepath, "info")
+				end
+			end)
+		else
+			file_operations.write_to_file(entry, filepath)
+		end
+	end
+	if entry.preview_content:match("Preview not supported for file type") ~= "" then
+		manager.downloadToBuffer(entry.base_url, entry.url, function(buf, temp_file)
+			if vim.fn.filereadable(temp_file) == 1 then
+				local mime_type = vim.fn.system("file --mime-type -b " .. temp_file):gsub("%s+", "")
+
+				if mime_type:find("^text/") or mime_type:find("^application/json") then
+					entry.preview_content = table.concat(vim.fn.readfile(temp_file), "\n")
+				else
+					local binary_content = io.open(temp_file, "rb"):read("*all")
+					entry.preview_content = binary_content
+				end
 			end
+
+			write()
 		end)
 	else
-		file_operations.write_to_file(filepath, content_to_write)
+		write()
+	end
+end
+
+local function transform_media(file)
+	return {
+		url = file.url,
+		display = require("dodona.utils.icon").get_icon(string.match(file.name, "%.(%w+)$")) .. file.name,
+		ordinal = file.name,
+		base_url = file.base_url,
+		comment = vim.NIL,
+		preview_content = "",
+		preview_binary = false,
+	}
+end
+
+local function prepare_media(media_files)
+	local media = {}
+
+	table.insert(media, {
+		display = "📥 All Media",
+		ordinal = "All Media",
+		value = "all",
+	})
+
+	for _, file in ipairs(media_files) do
+		table.insert(media, transform_media(file))
 	end
 
-	actions.close(prompt_bufnr)
+	return media
 end
 
 -- Function to select media files
@@ -45,19 +90,15 @@ function M.mediaSelector()
 			return
 		end
 
+		media_files = prepare_media(media_files)
+
 		picker_helper.create_picker(
 			{
 				previewer = media_previewer.media_previewer,
 			},
 			media_files,
-			function(file)
-				return {
-					value = file.url,
-					display = file.name,
-					ordinal = file.name,
-					base_url = file.base_url,
-					preview_content = "",
-				}
+			function(entry)
+				return entry
 			end,
 			"Select Media to Download",
 			function(prompt_bufnr, map)
@@ -69,7 +110,17 @@ function M.mediaSelector()
 						return
 					end
 
-					handle_media_selection(prompt_bufnr, entry)
+					actions.close(prompt_bufnr)
+					if entry.value == "all" then
+						for _, file in ipairs(media_files) do
+							if file.value ~= "all" then
+								handle_media_selection(file)
+							end
+						end
+						return
+					end
+
+					handle_media_selection(entry)
 				end)
 				return true
 			end
