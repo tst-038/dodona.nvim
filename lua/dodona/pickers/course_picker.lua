@@ -10,6 +10,9 @@ function M.courseSelector(selected_year)
 	local filtered_courses = vim.tbl_filter(function(course)
 		return course.year == selected_year
 	end, courses)
+	table.sort(filtered_courses, function(a, b)
+		return a.name < b.name
+	end)
 
 	picker_helper.create_picker(
 		{},

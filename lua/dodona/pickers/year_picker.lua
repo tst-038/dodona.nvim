@@ -13,6 +13,12 @@ function M.yearSelector()
 	end
 
 	local unique_years = vim.tbl_keys(years)
+
+	table.sort(unique_years, function(a, b)
+		local a_start_year = tonumber(a:match("^(%d%d%d%d)"))
+		local b_start_year = tonumber(b:match("^(%d%d%d%d)"))
+		return a_start_year > b_start_year
+	end)
 	picker_helper.create_picker({}, unique_years, nil, "Select Year", function(prompt_bufnr, map)
 		map("i", "<CR>", function()
 			local selection = action_state.get_selected_entry()

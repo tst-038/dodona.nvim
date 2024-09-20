@@ -10,23 +10,8 @@ local M = {}
 
 -- Function to handle media selection and writing to file
 local function handle_media_selection(entry)
-	local filepath = vim.fn.getcwd() .. "/" .. entry.ordinal
+	local filepath = vim.fn.getcwd() .. "/" .. entry.ordinal .. "." .. entry.extension
 
-	local write = function()
-		if vim.fn.filereadable(filepath) == 1 then
-			vim.ui.select({ "Yes", "No" }, {
-				prompt = "File already exists! Do you want to override it?",
-			}, function(choice)
-				if choice == "Yes" then
-					file_operations.write_to_file(entry, filepath)
-				else
-					notify("File not overwritten: " .. filepath, "info")
-				end
-			end)
-		else
-			file_operations.write_to_file(entry, filepath)
-		end
-	end
 	if entry.preview_content:match("Preview not supported for file type") ~= "" then
 		manager.downloadToBuffer(entry.base_url, entry.url, function(buf, temp_file)
 			if vim.fn.filereadable(temp_file) == 1 then
@@ -40,10 +25,10 @@ local function handle_media_selection(entry)
 				end
 			end
 
-			write()
+			file_operations.check_and_write_file(entry, filepath)
 		end)
 	else
-		write()
+		file_operations.check_and_write_file(entry, filepath)
 	end
 end
 
@@ -51,7 +36,8 @@ local function transform_media(file)
 	return {
 		url = file.url,
 		display = require("dodona.utils.icon").get_icon(string.match(file.name, "%.(%w+)$")) .. file.name,
-		ordinal = file.name,
+		ordinal = string.match(file.name, "(.*)%.%w+$"),
+		extension = string.match(file.name, "%.(%w+)$"),
 		base_url = file.base_url,
 		comment = vim.NIL,
 		preview_content = "",
@@ -61,9 +47,8 @@ end
 
 local function prepare_media(media_files)
 	local media = {}
-
 	table.insert(media, {
-		display = "📥 All Media",
+		display = require("dodona.utils.icon").get_download_all_media_icon() .. "All Media",
 		ordinal = "All Media",
 		value = "all",
 	})

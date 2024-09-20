@@ -11,8 +11,11 @@ function M.write_to_file(entry, file_path)
 	end
 
 	if file then
-		if entry.url ~= vim.NIL and entry.comment ~= vim.NIL then
+		if entry.comment ~= "" and entry.comment ~= vim.NIL and entry.comment ~= nil then
 			file:write(entry.comment .. " " .. entry.url .. "\n")
+			if entry.has_solution and not entry.last_solution_is_best then
+				file:write(entry.comment .. " WARN: This is not your best solution\n")
+			end
 		end
 
 		if entry.preview_content and entry.preview_content ~= "" and entry.preview_content ~= vim.NIL then
@@ -36,7 +39,7 @@ end
 function M.check_and_write_file(entry, file_path)
 	if vim.fn.filereadable(file_path) == 1 then
 		vim.ui.select({ "Yes", "No" }, {
-			prompt = "File already exists! Do you want to override it?",
+			prompt = entry.ordinal .. "." .. entry.extension .. " already exists! Do you want to override it?",
 		}, function(choice)
 			if choice == "Yes" then
 				M.write_to_file(entry, file_path)

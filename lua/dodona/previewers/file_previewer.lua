@@ -7,16 +7,15 @@ local M = {}
 M.file_previewer = previewers.new_buffer_previewer({
 	preview_title = "Latest submission",
 	define_preview = function(self, entry)
-		if entry.preview_content == vim.NIL then
-			entry.preview_content = "test"
+		if entry.has_solution and entry.preview_content == entry.boilerplate then
 			local submissions = api.get(
 				"/courses/"
-				.. entry.course
-				.. "/series/"
-				.. entry.serie
-				.. "/activities/"
-				.. entry.value
-				.. "/submissions",
+					.. entry.course
+					.. "/series/"
+					.. entry.serie
+					.. "/activities/"
+					.. entry.value
+					.. "/submissions",
 				false
 			)
 

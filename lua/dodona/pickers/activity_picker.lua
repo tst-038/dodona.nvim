@@ -13,13 +13,17 @@ local function transform_activity(activity, course_id, serie_id)
 		course = course_id,
 		serie = serie_id,
 		value = activity.id,
-		display = icon.get_icon(activity.programming_language.name) .. activity.name,
+		display = icon.get_icon(activity.programming_language.name) .. icon.get_status_icon(activity) .. activity.name,
 		ordinal = activity.name,
 		url = activity.url:gsub("%.json$", "/"),
 		extension = activity.programming_language.extension,
 		programming_language = activity.programming_language.name,
 		comment = require("dodona.comments")[activity.programming_language.name],
 		preview_content = activity.boilerplate,
+		has_solution = activity.has_solution,
+		has_correct_solution = activity.has_correct_solution,
+		last_solution_is_best = activity.last_solution_is_best,
+		boilerplate = activity.boilerplate,
 	}
 end
 
@@ -31,9 +35,17 @@ local function prepare_activities(course_id, serie_id)
 		course = course_id,
 		serie = serie_id,
 		value = "all",
-		display = "📥 All Activities",
+		display = icon.get_all_activities_icon() .. icon.get_status_icon({
+			has_correct_solution = false,
+			has_solution = false,
+			last_solution_is_best = false,
+		}) .. "All Activities",
 		ordinal = "All Activities",
 		preview_content = "",
+		boilerplate = "",
+		has_solution = false,
+		last_solution_is_best = false,
+		has_correct_solution = false,
 	})
 
 	for _, activity in ipairs(activities) do
@@ -46,12 +58,12 @@ end
 local function fetch_latest_submission(activity)
 	local submissions = api.get(
 		"/courses/"
-		.. activity.course_id
-		.. "/series/"
-		.. activity.serie_id
-		.. "/activities/"
-		.. activity.value
-		.. "/submissions",
+			.. activity.course
+			.. "/series/"
+			.. activity.serie
+			.. "/activities/"
+			.. activity.value
+			.. "/submissions",
 		false
 	)
 
@@ -70,7 +82,7 @@ end
 local function download_activity(activity)
 	if activity.value ~= "all" then
 		local file_name = activity.ordinal .. "." .. activity.extension
-		if not activity.preview_content then
+		if activity.preview_content == activity.boilerplate and activity.has_solution then
 			fetch_latest_submission(activity)
 		end
 		local file_path = vim.fn.getcwd() .. "/" .. file_name

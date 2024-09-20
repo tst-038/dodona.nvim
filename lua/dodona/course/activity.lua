@@ -41,10 +41,10 @@ local function check_evaluated(url)
 				timer:close()
 				notify(
 					response.body.status
-					.. ": "
-					.. tostring(response.body.summary)
-					.. "\n"
-					.. string.sub(response.body.url, 1, -6),
+						.. ": "
+						.. tostring(response.body.summary)
+						.. "\n"
+						.. string.sub(response.body.url, 1, -6),
 					color
 				)
 			end
@@ -86,7 +86,7 @@ end
 -- Helper function to fetch activities based on page number and filter
 local function fetchActivities(page, filter)
 	local params = {
-		filter = filter,
+		filter = filter:gsub(" ", "+"),
 		tab = "all",
 		page = page,
 	}
@@ -107,11 +107,12 @@ function M.getActivitiesFinder()
 				table.insert(filtered_activities, {
 					value = activity.id,
 					display = icon.get_icon(activity.programming_language.name)
-							.. stringUtil.pad_string(icon.get_status_icon(activity), icon.STATUS_PADDING_LENGTH)
-							.. activity.name,
+						.. icon.get_status_icon(activity)
+						.. activity.name,
 					ordinal = activity.name,
 					has_correct_solution = activity.has_correct_solution,
 					has_solution = activity.has_solution,
+					last_solution_is_best = activity.last_solution_is_best,
 				})
 			end
 		end

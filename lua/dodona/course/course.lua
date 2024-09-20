@@ -45,7 +45,7 @@ local function fetchCourses(page, filter)
 	local params = {
 		can_register = "true",
 		tab = "all",
-		filter = filter,
+		filter = filter:gsub(" ", "+"),
 		page = page,
 	}
 	local response = api.get("/courses/", false, params)
@@ -56,7 +56,7 @@ local function fetchCourses(page, filter)
 end
 
 -- Function to check if a course is subscribed by comparing the course id
-local function isCourseSubscribed(course_id, subscribed_courses)
+function M.isCourseSubscribed(course_id, subscribed_courses)
 	for _, course in ipairs(subscribed_courses) do
 		if course.id == course_id then
 			return true
@@ -67,11 +67,7 @@ end
 
 -- Function to get the Nerd Font symbol for subscription status
 local function getSubscriptionSymbol(course_id, subscribed_courses)
-	if isCourseSubscribed(course_id, subscribed_courses) then
-		return " "
-	else
-		return " "
-	end
+	return require("dodona.utils.icon").get_subscribed_icon(course_id, subscribed_courses)
 end
 
 function M.getCoursesFinder()
@@ -114,10 +110,16 @@ end
 -- Toggle subscription status
 function M.toggleSubscription(entry, subscribed_courses)
 	local course_id = entry.course_id
-	if isCourseSubscribed(course_id, subscribed_courses or M.getSubscribedCourses()) then
-		-- TODO: implement proper unsubscribe logic
-		api.get("/courses/" .. course_id .. "/unsubscribe", false, {})
-		notify("Unsubscribed from course: " .. entry.display, "info")
+	if M.isCourseSubscribed(course_id, subscribed_courses or M.getSubscribedCourses()) then
+		notify(
+			"You are already subscribed to course: \n"
+			.. entry.ordinal
+			.. " "
+			.. entry.year
+			.. "\nTo unsubsribe visit\n"
+			.. entry.url:match("(.*)%.json$"),
+			"warn"
+		)
 	else
 		api.get("/courses/" .. course_id .. "/subscribe", false, {})
 		notify("Subscribed to course: " .. entry.display, "info")

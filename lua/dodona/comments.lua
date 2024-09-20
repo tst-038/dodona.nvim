@@ -6,7 +6,8 @@ local M = {
   prolog = "% ",
   bash = "#",
   sh = "#",
-  javascript = "//"
+  javascript = "//",
+  text = "#",
 }
 
 return M

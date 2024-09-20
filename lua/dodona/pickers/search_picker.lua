@@ -43,7 +43,7 @@ function M.searchCourses()
 			entry_maker = function(entry)
 				return {
 					display = entry.display,
-					ordinal = entry.display,
+					ordinal = entry.ordinal,
 					course_id = entry.course_id,
 					series = entry.series,
 					teacher = entry.teacher,
@@ -90,7 +90,7 @@ function M.search()
 		prompt_title = "Choose Search Type",
 		finder = finders.new_table({
 			results = {
-				{ display = "Search Courses", action = M.searchCourses },
+				{ display = "Search Courses",    action = M.searchCourses },
 				{ display = "Search Activities", action = M.searchActivities },
 			},
 			entry_maker = function(entry)
