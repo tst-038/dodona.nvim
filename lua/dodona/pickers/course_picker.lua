@@ -22,6 +22,7 @@ function M.courseSelector(selected_year)
 				value = course.id,
 				display = course.name,
 				ordinal = course.name,
+				course = course,
 			}
 		end,
 		"Select Course",
@@ -29,7 +30,7 @@ function M.courseSelector(selected_year)
 			map("i", "<CR>", function()
 				local selection = action_state.get_selected_entry()
 				actions.close(prompt_bufnr)
-				require("dodona.pickers.serie_picker").serieSelector(selection.value)
+				require("dodona.pickers.serie_picker").serieSelector(selection.course)
 			end)
 			return true
 		end

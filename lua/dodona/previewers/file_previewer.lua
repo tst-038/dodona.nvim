@@ -10,12 +10,12 @@ M.file_previewer = previewers.new_buffer_previewer({
 		if entry.has_solution and entry.preview_content == entry.boilerplate then
 			local submissions = api.get(
 				"/courses/"
-					.. entry.course
-					.. "/series/"
-					.. entry.serie
-					.. "/activities/"
-					.. entry.value
-					.. "/submissions",
+				.. entry.course.id
+				.. "/series/"
+				.. entry.serie.id
+				.. "/activities/"
+				.. entry.value
+				.. "/submissions",
 				false
 			)
 

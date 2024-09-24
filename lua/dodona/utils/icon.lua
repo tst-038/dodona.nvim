@@ -45,6 +45,11 @@ function M.get_all_activities_icon()
 	return get_padded_icon("", M.ICON_PADDING_LENGTH)
 end
 
+-- Function to get the all activities icon with padding
+function M.get_all_series_icon()
+	return get_padded_icon("", M.ICON_PADDING_LENGTH)
+end
+
 -- Function to get the appropriate filetype icon with padding
 function M.get_icon(language)
 	local icon, _ = devicons.get_icon_by_filetype(language, { default = true })

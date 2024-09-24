@@ -9,8 +9,11 @@ local file_operations = require("dodona.utils.file_operations")
 local M = {}
 
 -- Function to handle media selection and writing to file
-local function handle_media_selection(entry)
-	local filepath = vim.fn.getcwd() .. "/" .. entry.ordinal .. "." .. entry.extension
+local function handle_media_selection(entry, directory)
+	if directory == nil then
+		directory = vim.fn.expand("%:p:h")
+	end
+	local filepath = directory .. "/" .. entry.ordinal .. "." .. entry.extension
 
 	if entry.preview_content:match("Preview not supported for file type") ~= "" then
 		manager.downloadToBuffer(entry.base_url, entry.url, function(buf, temp_file)
@@ -25,10 +28,10 @@ local function handle_media_selection(entry)
 				end
 			end
 
-			file_operations.check_and_write_file(entry, filepath)
+			file_operations.check_and_queue_file(entry, filepath)
 		end)
 	else
-		file_operations.check_and_write_file(entry, filepath)
+		file_operations.check_and_queue_file(entry, filepath)
 	end
 end
 
@@ -60,6 +63,28 @@ local function prepare_media(media_files)
 	return media
 end
 
+function M.download_all_media(media_files, directory)
+	if media_files ~= nil then
+		for _, file in ipairs(media_files) do
+			if file.value ~= "all" then
+				handle_media_selection(file, directory)
+			end
+		end
+	end
+end
+
+function M.get_all_prepared_media(url)
+	local media_files = manager.getMediaFiles(url)
+
+	if #media_files == 0 then
+		notify("No media files found", "warn")
+		return
+	end
+
+	media_files = prepare_media(media_files)
+	return media_files
+end
+
 -- Function to select media files
 function M.mediaSelector()
 	local bufnr = vim.api.nvim_get_current_buf()
@@ -68,15 +93,7 @@ function M.mediaSelector()
 	url = url:gsub("/$", "")
 
 	if url ~= "" then
-		local media_files = manager.getMediaFiles(url)
-
-		if #media_files == 0 then
-			notify("No media files found", "warn")
-			return
-		end
-
-		media_files = prepare_media(media_files)
-
+		local media_files = M.get_all_prepared_media(url)
 		picker_helper.create_picker(
 			{
 				previewer = media_previewer.media_previewer,
@@ -97,15 +114,13 @@ function M.mediaSelector()
 
 					actions.close(prompt_bufnr)
 					if entry.value == "all" then
-						for _, file in ipairs(media_files) do
-							if file.value ~= "all" then
-								handle_media_selection(file)
-							end
-						end
+						M.download_all_media(media_files)
+						file_operations.process_file_queue()
 						return
 					end
 
 					handle_media_selection(entry)
+					file_operations.process_file_queue()
 				end)
 				return true
 			end

@@ -76,4 +76,8 @@ function M.setToken()
 	api.setup(config)
 end
 
+function M.get_download_on_init_config_field()
+	return config.download_on_init
+end
+
 return M

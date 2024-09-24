@@ -78,13 +78,13 @@ function M.getCoursesFinder()
 
 		for _, course in ipairs(courses) do
 			if course.name and course.name:find(prompt) then
-				local name_width = 80
-				local year_width = 30
+				local name_width = 60
+				local year_width = 20
 				local teacher_width = 10
 
 				local display_str = stringUtil.pad_string(course.name, name_width)
-						.. stringUtil.pad_string(course.year or "", year_width)
-						.. stringUtil.pad_string(course.teacher or "", teacher_width)
+					.. stringUtil.pad_string(course.year or "", year_width)
+					.. stringUtil.pad_string(course.teacher or "", teacher_width)
 
 				table.insert(filtered_courses, {
 					display = string.format(
@@ -113,22 +113,22 @@ function M.toggleSubscription(entry, subscribed_courses)
 	if M.isCourseSubscribed(course_id, subscribed_courses or M.getSubscribedCourses()) then
 		notify(
 			"You are already subscribed to course: \n"
-			.. entry.ordinal
-			.. " "
-			.. entry.year
-			.. "\nTo unsubsribe visit\n"
-			.. entry.url:match("(.*)%.json$"),
+				.. entry.ordinal
+				.. " "
+				.. entry.year
+				.. "\nTo unsubsribe visit\n"
+				.. entry.url:match("(.*)%.json$"),
 			"warn"
 		)
 	else
 		api.get("/courses/" .. course_id .. "/subscribe", false, {})
-		notify("Subscribed to course: " .. entry.display, "info")
+		notify("Subscribed to course: " .. entry.ordinal .. " " .. entry.year .. " " .. entry.teacher, "info")
 	end
 end
 
 -- Inspect course, opening series view
-function M.inspectCourse(course_id)
-	require("dodona.pickers.serie_picker").serieSelector(course_id)
+function M.inspectCourse(course)
+	require("dodona.pickers.serie_picker").serieSelector(course)
 end
 
 return M

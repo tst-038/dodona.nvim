@@ -1,5 +1,4 @@
 local api = require("dodona.api")
-local stringUtil = require("dodona.utils.string")
 local icon = require("dodona.utils.icon")
 local notify = require("notify")
 
@@ -41,10 +40,10 @@ local function check_evaluated(url)
 				timer:close()
 				notify(
 					response.body.status
-						.. ": "
-						.. tostring(response.body.summary)
-						.. "\n"
-						.. string.sub(response.body.url, 1, -6),
+					.. ": "
+					.. tostring(response.body.summary)
+					.. "\n"
+					.. string.sub(response.body.url, 1, -6),
 					color
 				)
 			end
@@ -107,8 +106,8 @@ function M.getActivitiesFinder()
 				table.insert(filtered_activities, {
 					value = activity.id,
 					display = icon.get_icon(activity.programming_language.name)
-						.. icon.get_status_icon(activity)
-						.. activity.name,
+							.. icon.get_status_icon(activity)
+							.. activity.name,
 					ordinal = activity.name,
 					has_correct_solution = activity.has_correct_solution,
 					has_solution = activity.has_solution,
