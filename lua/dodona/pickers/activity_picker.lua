@@ -7,6 +7,8 @@ local media_picker = require("dodona.pickers.media_picker")
 local action_state = require("telescope.actions.state")
 local file_ops = require("dodona.utils.file_operations")
 local actions = require("telescope.actions")
+local notify = require("dodona.notify")
+local config = require("dodona.config")
 
 local M = {}
 
@@ -30,8 +32,7 @@ local function transform_activity(activity, index, course, serie)
 	}
 end
 
-function M.prepare_activities(course, serie)
-	local activities = manager.getActivities(serie.id)
+function M.transform_activities(course, serie, activities)
 	local filtered_activities = {}
 	local transformed_activities = {}
 
@@ -65,74 +66,107 @@ function M.prepare_activities(course, serie)
 	return transformed_activities
 end
 
-local function fetch_latest_submission(activity)
-	local submissions = api.get(
-		"/courses/"
-		.. activity.course.id
-		.. "/series/"
-		.. activity.serie.id
-		.. "/activities/"
-		.. activity.value
-		.. "/submissions",
-		false
+function M.prepare_activities(course, serie)
+	return M.transform_activities(course, serie, manager.getActivities(serie.id))
+end
+
+local function fetch_latest_submission(activity, callback)
+	local path = string.format(
+		"/courses/%s/series/%s/activities/%s/submissions",
+		activity.course.id,
+		activity.serie.id,
+		activity.value
 	)
-
-	if submissions and #submissions.body > 0 then
-		local latest_submission_url = submissions.body[1].url
-		local latest_submission = api.get(latest_submission_url, true)
-
-		if latest_submission and latest_submission.body.code and latest_submission.body.code ~= "" then
-			activity.preview_content = latest_submission.body.code
+	return api.get_async(path, {}, function(err, submissions)
+		local latest = not err and submissions.body and submissions.body[1]
+		if not latest or not latest.url then
+			callback(activity)
+			return
 		end
-	end
-	return activity
+		api.get_async(latest.url, { full_url = true }, function(latest_err, response)
+			if not latest_err and response.body and response.body.code and response.body.code ~= "" then
+				activity.preview_content = response.body.code
+			end
+			callback(activity)
+		end)
+	end)
 end
 
--- Function to handle downloading a single activity
-local function download_activity(activity, length, activities, index)
-	if activity.value ~= "all" then
-		local file_name = activity.ordinal .. "." .. activity.extension
-		if activity.preview_content == activity.boilerplate and activity.has_solution then
-			fetch_latest_submission(activity)
-		end
-		local index_activity = (index and string_utils.pad_number(index, activities) .. "_" or "")
-		local file_path = vim.fn.getcwd()
-				.. "/"
-				.. activity.course.year
-				.. "/"
-				.. activity.course.name:gsub(" ", "_")
-				.. "_"
-				.. activity.course.id
-				.. "/"
-				.. string_utils.pad_number(activity.serie.order, length)
-				.. "_"
-				.. file_ops.sanitize_filename(activity.serie.name:gsub(" ", "_"))
-				.. "/"
-				.. index_activity
-				.. file_ops.sanitize_filename(file_name:gsub(" ", "_"))
-				.. "/"
-		local full_path = file_path .. file_ops.sanitize_filename(file_name:gsub(" ", "_"))
+local function activity_paths(activity, series_padding, activity_padding, index)
+	local file_name = file_ops.sanitize_filename((activity.ordinal .. "." .. activity.extension):gsub(" ", "_"))
+	local series_number = series_padding > 0 and string_utils.pad_number(activity.serie.order, series_padding)
+		or tostring(activity.serie.order)
+	local activity_number = index and (string_utils.pad_number(index, activity_padding) .. "_") or ""
+	local directory = table.concat({
+		vim.fn.getcwd(),
+		tostring(activity.course.year),
+		file_ops.sanitize_filename(activity.course.name:gsub(" ", "_")) .. "_" .. activity.course.id,
+		series_number .. "_" .. file_ops.sanitize_filename(activity.serie.name:gsub(" ", "_")),
+		activity_number .. file_name,
+	}, "/") .. "/"
+	return directory, directory .. file_name
+end
+
+local function download_activity(activity, series_padding, activity_padding, index, callback)
+	callback = callback or function() end
+	local directory, full_path = activity_paths(activity, series_padding or 0, activity_padding, index)
+	local function write_and_download_media()
 		file_ops.check_and_queue_file(activity, full_path)
-		media_picker.download_all_media(media_picker.get_all_prepared_media(activity.url), file_path)
+		if not config.get().download_on_init then
+			callback()
+			return
+		end
+		manager.getMediaFilesAsync(activity.url, function(err, files)
+			if err or #files == 0 then
+				callback(err)
+				return
+			end
+			media_picker.download_all_media(media_picker.prepare_media(files), directory, callback)
+		end)
+	end
+	if activity.preview_content == activity.boilerplate and activity.has_solution then
+		fetch_latest_submission(activity, write_and_download_media)
+	else
+		write_and_download_media()
 	end
 end
 
--- Function to download all activities
-function M.download_all_activities(transformed_activities, number_padding)
-	if number_padding == nil then
-		number_padding = 0
+function M.download_all_activities(transformed_activities, series_padding, callback)
+	callback = callback or function() end
+	local activities = vim.tbl_filter(function(activity)
+		return activity.value ~= "all"
+	end, transformed_activities)
+	if #activities == 0 then
+		callback()
+		return
 	end
-	for index, activity in ipairs(transformed_activities) do
-		if activity.value ~= "all" then
-			download_activity(activity, number_padding, #tostring(#transformed_activities), index - 2)
+	local progress = notify.progress(string.format("Downloading 0/%d activities…", #activities))
+	local completed, failed = 0, 0
+	for index, activity in ipairs(activities) do
+		download_activity(activity, series_padding or 0, #tostring(#activities), index - 1, function(err)
+			completed = completed + 1
+			failed = failed + (err and 1 or 0)
+			progress:update(string.format("Downloading %d/%d activities…", completed, #activities))
+			if completed == #activities then
+				file_ops.process_file_queue()
+				progress:finish(string.format("Downloaded %d activities%s", completed, failed > 0 and ("; " .. failed .. " without media") or ""), failed > 0 and "warn" or "info")
+				callback()
+			end
+		end)
 		end
-	end
 end
 
 function M.activitySelector(course, serie)
-	local transformed_activities = M.prepare_activities(course, serie)
+	local progress = notify.progress("Fetching activities for " .. serie.name .. "…")
+	return manager.getActivitiesAsync(serie.id, function(err, activities)
+		if err then
+			progress:finish(err.message, "error")
+			return
+		end
+		progress:finish("Activities loaded")
+		local transformed_activities = M.transform_activities(course, serie, activities)
 
-	picker_helper.create_picker(
+		picker_helper.create_picker(
 		{
 			previewer = require("dodona.previewers.file_previewer").file_previewer,
 			preview_title = "Latest submission",
@@ -149,16 +183,15 @@ function M.activitySelector(course, serie)
 				local selection = action_state.get_selected_entry()
 				if selection.value == "all" then
 					M.download_all_activities(transformed_activities)
-					file_ops.process_file_queue()
 				else
-					download_activity(selection, 0, #tostring(#transformed_activities))
-					file_ops.process_file_queue()
+					M.download_all_activities({ selection })
 				end
 			end)
 
 			return true
 		end
-	)
+		)
+	end)
 end
 
 return M

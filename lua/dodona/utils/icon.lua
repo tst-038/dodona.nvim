@@ -1,4 +1,3 @@
-local devicons = require("nvim-web-devicons")
 local courses = require("dodona.course.course")
 
 local M = {}
@@ -52,6 +51,10 @@ end
 
 -- Function to get the appropriate filetype icon with padding
 function M.get_icon(language)
+	local ok, devicons = pcall(require, "nvim-web-devicons")
+	if not ok then
+		return ""
+	end
 	local icon, _ = devicons.get_icon_by_filetype(language, { default = true })
 	return get_padded_icon(icon or "", M.ICON_PADDING_LENGTH)
 end

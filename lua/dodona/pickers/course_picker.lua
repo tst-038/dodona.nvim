@@ -5,8 +5,8 @@ local action_state = require("telescope.actions.state")
 
 local M = {}
 
-function M.courseSelector(selected_year)
-	local courses = manager.getSubscribedCourses()
+function M.courseSelector(selected_year, courses)
+	courses = courses or manager.getSubscribedCourses()
 	local filtered_courses = vim.tbl_filter(function(course)
 		return course.year == selected_year
 	end, courses)
@@ -30,7 +30,9 @@ function M.courseSelector(selected_year)
 			map("i", "<CR>", function()
 				local selection = action_state.get_selected_entry()
 				actions.close(prompt_bufnr)
-				require("dodona.pickers.serie_picker").serieSelector(selection.course)
+				if selection then
+					require("dodona.pickers.serie_picker").serieSelector(selection.course)
+				end
 			end)
 			return true
 		end

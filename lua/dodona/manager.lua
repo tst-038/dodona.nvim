@@ -1,24 +1,25 @@
-local course = require("dodona.course.course")
-local series = require("dodona.course.series")
-local activity = require("dodona.course.activity")
-local media = require("dodona.file.media")
-
 local M = {}
 
--- Course management
-M.getSubscribedCourses = course.getSubscribedCourses
-M.getCourse = course.getCourse
-M.subscribe = course.subscribe
+local modules = {
+	getSubscribedCourses = "dodona.course.course",
+	getSubscribedCoursesAsync = "dodona.course.course",
+	getCourse = "dodona.course.course",
+	subscribe = "dodona.course.course",
+	getSeries = "dodona.course.series",
+	getSeriesAsync = "dodona.course.series",
+	getActivities = "dodona.course.activity",
+	getActivitiesAsync = "dodona.course.activity",
+	evalSubmission = "dodona.course.activity",
+	evalSubmissionContent = "dodona.course.activity",
+	getMediaFiles = "dodona.file.media",
+	getMediaFilesAsync = "dodona.file.media",
+	downloadToBuffer = "dodona.file.media",
+}
 
--- Series management
-M.getSeries = series.getSeries
-
--- Activity management
-M.getActivities = activity.getActivities
-M.evalSubmission = activity.evalSubmission
-
--- Media and file handling
-M.getMediaFiles = media.getMediaFiles
-M.downloadToBuffer = media.downloadToBuffer
+for method, module in pairs(modules) do
+	M[method] = function(...)
+		return require(module)[method](...)
+	end
+end
 
 return M

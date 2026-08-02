@@ -3,35 +3,47 @@ local picker_helper = require("dodona.utils.picker_helper")
 local media_previewer = require("dodona.previewers.media_previewer")
 local action_state = require("telescope.actions.state")
 local actions = require("telescope.actions")
-local notify = require("notify")
+local notify = require("dodona.notify")
 local file_operations = require("dodona.utils.file_operations")
 
 local M = {}
 
 -- Function to handle media selection and writing to file
-local function handle_media_selection(entry, directory)
+local function handle_media_selection(entry, directory, callback)
+	callback = callback or function() end
 	if directory == nil then
 		directory = vim.fn.expand("%:p:h")
 	end
 	local filepath = directory .. "/" .. entry.ordinal .. "." .. entry.extension
 
-	if entry.preview_content:match("Preview not supported for file type") ~= "" then
-		manager.downloadToBuffer(entry.base_url, entry.url, function(buf, temp_file)
+	if not entry.preview_content or entry.preview_content == "" or entry.preview_content:find("Binary preview", 1, true) then
+		manager.downloadToBuffer(entry.base_url, entry.url, function(buf, temp_file, err)
+			if err then
+				callback(err)
+				return
+			end
 			if vim.fn.filereadable(temp_file) == 1 then
-				local mime_type = vim.fn.system("file --mime-type -b " .. temp_file):gsub("%s+", "")
-
-				if mime_type:find("^text/") or mime_type:find("^application/json") then
+				if require("dodona.file.media").isTextFile(temp_file) then
 					entry.preview_content = table.concat(vim.fn.readfile(temp_file), "\n")
 				else
-					local binary_content = io.open(temp_file, "rb"):read("*all")
-					entry.preview_content = binary_content
+					local file = io.open(temp_file, "rb")
+					if file then
+						entry.preview_content = file:read("*a")
+						entry.preview_binary = true
+						file:close()
+					end
 				end
 			end
 
 			file_operations.check_and_queue_file(entry, filepath)
+			file_operations.process_file_queue()
+			local uv = vim.uv or vim.loop
+			uv.fs_unlink(temp_file)
+			callback()
 		end)
 	else
 		file_operations.check_and_queue_file(entry, filepath)
+		callback()
 	end
 end
 
@@ -63,13 +75,30 @@ local function prepare_media(media_files)
 	return media
 end
 
-function M.download_all_media(media_files, directory)
-	if media_files ~= nil then
-		for _, file in ipairs(media_files) do
-			if file.value ~= "all" then
-				handle_media_selection(file, directory)
-			end
+M.prepare_media = prepare_media
+
+function M.download_all_media(media_files, directory, callback)
+	callback = callback or function() end
+	local downloads = {}
+	for _, file in ipairs(media_files or {}) do
+		if file.value ~= "all" then
+			table.insert(downloads, file)
 		end
+	end
+	local pending = #downloads
+	if pending == 0 then
+		callback()
+		return
+	end
+	local first_error
+	for _, file in ipairs(downloads) do
+		handle_media_selection(file, directory, function(err)
+			first_error = first_error or err
+			pending = pending - 1
+			if pending == 0 then
+				callback(first_error)
+			end
+		end)
 	end
 end
 
@@ -93,8 +122,19 @@ function M.mediaSelector()
 	url = url:gsub("/$", "")
 
 	if url ~= "" then
-		local media_files = M.get_all_prepared_media(url)
-		picker_helper.create_picker(
+		local progress = notify.progress("Fetching activity media…")
+		return manager.getMediaFilesAsync(url, function(err, files)
+			if err then
+				progress:finish(err.message, "error")
+				return
+			end
+			if #files == 0 then
+				progress:finish("No media files found", "warn")
+				return
+			end
+			progress:finish("Media loaded")
+			local media_files = prepare_media(files)
+			picker_helper.create_picker(
 			{
 				previewer = media_previewer.media_previewer,
 			},
@@ -124,7 +164,8 @@ function M.mediaSelector()
 				end)
 				return true
 			end
-		)
+			)
+		end)
 	else
 		notify("Falling back to course selection", "info")
 		require("dodona.pickers.year_picker").yearSelector()

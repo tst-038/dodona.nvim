@@ -1,11 +1,16 @@
 local api = require("dodona.api")
 local stringUtil = require("dodona.utils.string")
-local notify = require("notify")
+local notify = require("dodona.notify")
+local cache = require("dodona.cache")
 
 local M = {}
 
 -- Fetch and return the list of subscribed courses
 function M.getSubscribedCourses()
+	local cached = cache.get("courses:subscribed")
+	if cached then
+		return cached
+	end
 	local result = api.get("", false)
 
 	if not result or not result.body then
@@ -18,7 +23,26 @@ function M.getSubscribedCourses()
 		return {}
 	end
 
-	return result.body.user.subscribed_courses or {}
+	local courses = result.body.user.subscribed_courses or {}
+	cache.set("courses:subscribed", courses)
+	return courses
+end
+
+function M.getSubscribedCoursesAsync(callback)
+	return cache.fetch("courses:subscribed", function(done)
+		api.get_async("", {}, function(err, result)
+			if err then
+				done(err, {})
+				return
+			end
+			local user = result.body and result.body.user
+			if not user then
+				done({ message = "User data is missing in the Dodona response" }, {})
+				return
+			end
+			done(nil, user.subscribed_courses or {})
+		end)
+		end, callback)
 end
 
 -- Get details of a specific course using its name, id, or year
@@ -70,41 +94,53 @@ local function getSubscriptionSymbol(course_id, subscribed_courses)
 	return require("dodona.utils.icon").get_subscribed_icon(course_id, subscribed_courses)
 end
 
+local function transform_courses(courses, subscribed_courses)
+	local transformed = {}
+	for _, course in ipairs(courses) do
+		local display_str = stringUtil.pad_string(course.name or "", 60)
+			.. stringUtil.pad_string(course.year or "", 20)
+			.. stringUtil.pad_string(course.teacher or "", 10)
+		table.insert(transformed, {
+			display = string.format("%s %s", getSubscriptionSymbol(course.id, subscribed_courses), display_str),
+			ordinal = course.name,
+			course_id = course.id,
+			series = course.series,
+			teacher = course.teacher,
+			url = course.url,
+			year = course.year,
+			course = course,
+		})
+	end
+	return transformed
+end
+
 function M.getCoursesFinder()
 	local function get_courses(prompt)
 		local courses = fetchCourses(1, prompt)
 		local filtered_courses = {}
 		local cached_subscribed_courses = M.getSubscribedCourses()
-
-		for _, course in ipairs(courses) do
-			if course.name and course.name:find(prompt) then
-				local name_width = 60
-				local year_width = 20
-				local teacher_width = 10
-
-				local display_str = stringUtil.pad_string(course.name, name_width)
-					.. stringUtil.pad_string(course.year or "", year_width)
-					.. stringUtil.pad_string(course.teacher or "", teacher_width)
-
-				table.insert(filtered_courses, {
-					display = string.format(
-						"%s %s",
-						getSubscriptionSymbol(course.id, cached_subscribed_courses),
-						display_str
-					),
-					ordinal = course.name,
-					course_id = course.id,
-					series = course.series,
-					teacher = course.teacher,
-					url = course.url,
-					year = course.year,
-				})
-			end
-		end
+		filtered_courses = transform_courses(courses, cached_subscribed_courses)
 		return filtered_courses
 	end
 
 	return get_courses
+end
+
+function M.searchCoursesAsync(prompt, callback)
+	local params = { can_register = "true", tab = "all", filter = prompt, page = 1 }
+	return api.get_async("/courses/", { params = params }, function(err, response)
+		if err then
+			callback(err, {})
+			return
+		end
+		M.getSubscribedCoursesAsync(function(subscribed_err, subscribed)
+			if subscribed_err then
+				callback(subscribed_err, {})
+				return
+			end
+			callback(nil, transform_courses(response.body or {}, subscribed))
+		end)
+	end)
 end
 
 -- Toggle subscription status
@@ -122,12 +158,17 @@ function M.toggleSubscription(entry, subscribed_courses)
 		)
 	else
 		api.get("/courses/" .. course_id .. "/subscribe", false, {})
+		cache.invalidate("courses:")
 		notify("Subscribed to course: " .. entry.ordinal .. " " .. entry.year .. " " .. entry.teacher, "info")
 	end
 end
 
 -- Inspect course, opening series view
 function M.inspectCourse(course)
+	if type(course) ~= "table" then
+		notify("Could not open course: invalid selection", "error")
+		return
+	end
 	require("dodona.pickers.serie_picker").serieSelector(course)
 end
 

@@ -1,118 +1,74 @@
-local picker_helper = require("dodona.utils.picker_helper")
-local courses = require("dodona.course.course")
-local activities = require("dodona.course.activity")
+local action_state = require("telescope.actions.state")
 local actions = require("telescope.actions")
 local finders = require("telescope.finders")
-local action_state = require("telescope.actions.state")
+local courses = require("dodona.course.course")
+local activities = require("dodona.course.activity")
+local notify = require("dodona.notify")
+local picker_helper = require("dodona.utils.picker_helper")
 
 local M = {}
 
--- Key bindings for activity search picker
-local function attach_activity_mappings(prompt_bufnr, map)
-	map("i", "<CR>", function()
-		local entry = action_state.get_selected_entry()
-		actions.close(prompt_bufnr)
-		activities.inspectActivity(entry.course_id)
-	end)
-	return true
+local function select_mapping(handler)
+	return function(prompt_bufnr, map)
+		local function select()
+			local entry = action_state.get_selected_entry()
+			actions.close(prompt_bufnr)
+			if entry then
+				handler(entry)
+			end
+		end
+		map("i", "<CR>", select)
+		map("n", "<CR>", select)
+		return true
+	end
 end
 
--- Key bindings for course search picker
-local function attach_course_mappings(prompt_bufnr, map)
-	map("i", "<CR>", function()
-		local entry = action_state.get_selected_entry()
-		actions.close(prompt_bufnr)
-		courses.inspectCourse(entry.course_id)
+local function ask_and_search(title, fetch, inspect)
+	vim.ui.input({ prompt = title .. ": " }, function(query)
+		if not query or query:match("^%s*$") then
+			return
+		end
+		local progress = notify.progress("Searching Dodona…")
+		fetch(query, function(err, results)
+			if err then
+				progress:finish(err.message, "error")
+				return
+			end
+			if #results == 0 then
+				progress:finish("No results found", "warn")
+				return
+			end
+			progress:finish(string.format("Found %d result%s", #results, #results == 1 and "" or "s"))
+			picker_helper.create_picker({}, results, function(entry)
+				return entry
+			end, title, select_mapping(inspect))
+		end)
 	end)
-
-	map("i", "<Tab>", function()
-		local entry = action_state.get_selected_entry()
-		actions.close(prompt_bufnr)
-		courses.toggleSubscription(entry)
-	end)
-
-	return true
 end
 
--- Open search picker for courses
 function M.searchCourses()
-	local opts = {
-		prompt_title = "Search Courses",
-		finder = finders.new_dynamic({
-			fn = courses.getCoursesFinder(),
-			entry_maker = function(entry)
-				return {
-					display = entry.display,
-					ordinal = entry.ordinal,
-					course_id = entry.course_id,
-					series = entry.series,
-					teacher = entry.teacher,
-					url = entry.url,
-					year = entry.year,
-				}
-			end,
-		}),
-		sorter = require("telescope.sorters").get_generic_fuzzy_sorter(),
-		attach_mappings = attach_course_mappings,
-	}
-
-	picker_helper.create_picker(opts)
+	ask_and_search("Search courses", courses.searchCoursesAsync, function(entry)
+		courses.inspectCourse(entry.course)
+	end)
 end
 
--- Open search picker for activities
 function M.searchActivities()
-	local opts = {
-		prompt_title = "Search Activities",
-		finder = finders.new_dynamic({
-			fn = activities.getActivitiesFinder(),
-			entry_maker = function(entry)
-				return {
-					display = entry.display,
-					ordinal = entry.ordinal,
-					course_id = entry.course_id,
-					series = entry.series,
-					teacher = entry.teacher,
-					url = entry.url,
-					year = entry.year,
-				}
-			end,
-		}),
-		sorter = require("telescope.sorters").get_generic_fuzzy_sorter(),
-		attach_mappings = attach_activity_mappings,
-	}
-
-	picker_helper.create_picker(opts)
+	ask_and_search("Search activities", activities.searchActivitiesAsync, activities.inspectActivity)
 end
 
--- Open a picker to select between searching for courses or activities
 function M.search()
-	local opts = {
-		prompt_title = "Choose Search Type",
+	picker_helper.create_picker({
+		prompt_title = "Search Dodona",
 		finder = finders.new_table({
 			results = {
-				{ display = "Search Courses",    action = M.searchCourses },
-				{ display = "Search Activities", action = M.searchActivities },
+				{ display = "Search Courses", ordinal = "courses", action = M.searchCourses },
+				{ display = "Search Activities", ordinal = "activities", action = M.searchActivities },
 			},
-			entry_maker = function(entry)
-				return {
-					display = entry.display,
-					ordinal = entry.display,
-					action = entry.action,
-				}
-			end,
 		}),
-		sorter = require("telescope.sorters").get_generic_fuzzy_sorter(),
-		attach_mappings = function(prompt_bufnr, map)
-			map("i", "<CR>", function()
-				local entry = action_state.get_selected_entry()
-				actions.close(prompt_bufnr)
-				entry.action()
-			end)
-			return true
-		end,
-	}
-
-	picker_helper.create_picker(opts)
+		attach_mappings = select_mapping(function(entry)
+			entry.action()
+		end),
+	})
 end
 
 return M

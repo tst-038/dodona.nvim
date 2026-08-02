@@ -4,7 +4,7 @@ local pickers = require("telescope.pickers")
 local finders = require("telescope.finders")
 local previewers = require("telescope.previewers")
 local conf = require("telescope.config").values
-local notify = require("notify")
+local notify = require("dodona.notify")
 
 local M = {}
 
@@ -12,17 +12,19 @@ local M = {}
 M.file_queue = {}
 
 function M.sanitize_filename(filename)
-	local sanitized = filename:gsub('[\\/:%*%?"<>|]', "_")
+	local sanitized = filename:gsub("[%z\1-\31]", "_")
+	sanitized = sanitized:gsub('[\\/:%*%?"<>|]', "_")
+	sanitized = sanitized:gsub("%.%.", "_"):gsub("^%.", "_")
 	sanitized = sanitized:gsub("^%s*(.-)%s*$", "%1")
-	return sanitized
+	return sanitized ~= "" and sanitized or "unnamed"
 end
 
 function M.write_to_file(entry, file_path)
 	local file
-	if type(entry.preview_content) == "string" then
-		file = io.open(file_path, "w")
-	else
+	if entry.preview_binary then
 		file = io.open(file_path, "wb")
+	else
+		file = io.open(file_path, "w")
 	end
 
 	if file then
@@ -138,9 +140,7 @@ function M.set_buffer_content(bufnr, content, filetype)
 		vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(content, "\n"))
 	end
 	if filetype then
-		vim.api.nvim_buf_call(bufnr, function()
-			vim.cmd("setfiletype " .. filetype)
-		end)
+		vim.bo[bufnr].filetype = filetype
 	end
 end
 
